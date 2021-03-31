@@ -17,8 +17,7 @@ class BLSTM(torch.nn.Module):
         super(BLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers,
-                            batch_first=False, bidirectional=True)
+        self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers, batch_first=False, bidirectional=True)
         self.fc = torch.nn.Linear(hidden_size * 2, num_classes)  # 2 for bidirection
 
     def forward(self, features):

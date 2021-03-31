@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.autograd
 import sklearn.metrics
-import warpctc_pytorch
+# import warpctc_pytorch
 
 # Local imports
 import config
@@ -32,7 +32,7 @@ import parser.grammarutils
 cross_entropy = torch.nn.CrossEntropyLoss().cuda()
 mse_loss = torch.nn.MSELoss().cuda()
 softmax = torch.nn.Softmax(dim=2)
-ctc_loss = warpctc_pytorch.CTCLoss().cuda()
+# ctc_loss = warpctc_pytorch.CTCLoss().cuda()
 
 
 def loss_func(model_outputs, labels, probs, total_lengths, args):
@@ -44,8 +44,8 @@ def loss_func(model_outputs, labels, probs, total_lengths, args):
         for f in range(seg_length):
             if int(labels[f, i_batch]) != current_label:
                 current_label = int(labels[f, i_batch])
-                gt_pred_labels.extend([current_label for _ in range(f-len(gt_pred_labels)-1)])
-        gt_pred_labels.extend([int(labels[seg_length-1, i_batch]) for _ in range(seg_length-len(gt_pred_labels))])
+                gt_pred_labels.extend([current_label for _ in range(f - len(gt_pred_labels) - 1)])
+        gt_pred_labels.extend([int(labels[seg_length - 1, i_batch]) for _ in range(seg_length - len(gt_pred_labels))])
         gt_pred_labels = utils.to_variable(torch.LongTensor(gt_pred_labels), args.cuda)
 
         loss += cross_entropy(model_outputs[:seg_length, i_batch, :], gt_pred_labels)
@@ -226,7 +226,7 @@ def parse_arguments():
     def restricted_float(x, inter):
         x = float(x)
         if x < inter[0] or x > inter[1]:
-            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]"%(x,))
+            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]" % (x,))
         return x
 
     paths = config.Paths()
@@ -235,8 +235,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='CAD 120 dataset')
     parser.add_argument('--project-root', default=paths.project_root, help='intermediate result path')
     parser.add_argument('--tmp-root', default=paths.tmp_root, help='intermediate result path')
-    parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/baseline/segment'), help='log files path')
-    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/baseline/segment'), help='path to latest checkpoint')
+    parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/baseline/segment'),
+                        help='log files path')
+    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/baseline/segment'),
+                        help='path to latest checkpoint')
     parser.add_argument('--visualize', action='store_true', default=False, help='Visualize final results')
 
     # Optimization Options

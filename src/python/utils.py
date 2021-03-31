@@ -30,8 +30,8 @@ def get_cad_data(args):
                                                batch_size=args.batch_size,
                                                num_workers=args.prefetch, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(testing_set, collate_fn=datasets.utils.collate_fn_cad,
-                                               batch_size=args.batch_size,
-                                               num_workers=args.prefetch, pin_memory=True)
+                                              batch_size=args.batch_size,
+                                              num_workers=args.prefetch, pin_memory=True)
 
     print('Dataset sizes: {} training, {} testing.'.format(len(train_loader), len(test_loader)))
     return training_set, testing_set, train_loader, test_loader
@@ -45,8 +45,8 @@ def get_wnp_data(args):
                                                batch_size=args.batch_size,
                                                num_workers=args.prefetch, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(testing_set, collate_fn=datasets.utils.collate_fn_wnp,
-                                               batch_size=args.batch_size,
-                                               num_workers=args.prefetch, pin_memory=True)
+                                              batch_size=args.batch_size,
+                                              num_workers=args.prefetch, pin_memory=True)
 
     print('Dataset sizes: {} training, {} testing.'.format(len(train_loader), len(test_loader)))
     return training_set, testing_set, train_loader, test_loader

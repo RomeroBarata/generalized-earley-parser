@@ -20,7 +20,7 @@ import numpy as np
 import torch
 import torch.autograd
 import sklearn.metrics
-import warpctc_pytorch
+# import warpctc_pytorch
 
 # Local imports
 import config
@@ -34,7 +34,7 @@ import parser.grammarutils
 cross_entropy = torch.nn.CrossEntropyLoss().cuda()
 mse_loss = torch.nn.MSELoss().cuda()
 softmax = torch.nn.Softmax(dim=2)
-ctc_loss = warpctc_pytorch.CTCLoss().cuda()
+# ctc_loss = warpctc_pytorch.CTCLoss().cuda()
 
 
 def loss_func(model_outputs, labels, probs, ctc_labels, total_lengths, ctc_lengths):
@@ -156,8 +156,9 @@ def train(train_loader, model, criterion, optimizer, epoch, logger, args=None):
     if logger is not None:
         logger.log_value('train_epoch_loss', losses.avg)
 
-    print('Epoch: [{0}] Avg Subactivity Error Ratio {act_err.avg:.3f}; Average Loss {losses.avg:.3f}; Batch Avg Time {b_time.avg:.3f}'
-          .format(epoch, act_err=subactivity_error_ratio, losses=losses, b_time=batch_time))
+    report_str = 'Epoch: [{0}] Avg Subactivity Error Ratio {act_err.avg:.3f}; ' \
+                 'Average Loss {losses.avg:.3f}; Batch Avg Time {b_time.avg:.3f}'
+    print(report_str.format(epoch, act_err=subactivity_error_ratio, losses=losses, b_time=batch_time))
 
 
 def inference(model_outputs, activities, sequence_ids, ctc_labels, args):
@@ -167,8 +168,9 @@ def inference(model_outputs, activities, sequence_ids, ctc_labels, args):
     batch_tokens = list()
     batch_seg_pos = list()
     for batch_i in range(model_outputs.size()[1]):
-        grammar_file = os.path.join(args.tmp_root, 'grammar', 'cad', activities[batch_i]+'.pcfg')
-        grammar = parser.grammarutils.read_grammar(grammar_file, index=True, mapping=datasets.cad_metadata.subactivity_index)
+        grammar_file = os.path.join(args.tmp_root, 'grammar', 'cad', activities[batch_i] + '.pcfg')
+        grammar = parser.grammarutils.read_grammar(grammar_file, index=True,
+                                                   mapping=datasets.cad_metadata.subactivity_index)
         gen_earley_parser = parser.GeneralizedEarley(grammar)
         best_string, prob = gen_earley_parser.parse(np.squeeze(model_output_probs[:, batch_i, :]))
         # print activities[batch_i], sequence_ids[batch_i], model_output_probs.shape[0]
@@ -210,20 +212,21 @@ def predict(activities, total_lengths, labels, ctc_labels, batch_tokens, batch_s
     seg_predictions = list()
     frame_predictions = list()
     for batch_i in range(np_labels.shape[1]):
-        grammar_file = os.path.join(args.tmp_root, 'grammar', 'cad', activities[batch_i]+'.pcfg')
-        grammar = parser.grammarutils.read_grammar(grammar_file, index=True, mapping=datasets.cad_metadata.subactivity_index)
+        grammar_file = os.path.join(args.tmp_root, 'grammar', 'cad', activities[batch_i] + '.pcfg')
+        grammar = parser.grammarutils.read_grammar(grammar_file, index=True,
+                                                   mapping=datasets.cad_metadata.subactivity_index)
         token_i = -1
         gt_token_i = -1
-        for frame in range(total_lengths[batch_i]-duration):
+        for frame in range(total_lengths[batch_i] - duration):
             # Segment prediction
             if gt_token_i == -1 or gt_batch_seg_pos[batch_i][gt_token_i] < frame:
                 gt_token_i += 1
-                if gt_token_i < len(ctc_labels[batch_i])-1:
+                if gt_token_i < len(ctc_labels[batch_i]) - 1:
                     current_gt_prediction = ctc_labels[batch_i][gt_token_i+1]
                 else:
                     current_gt_prediction = ctc_labels[batch_i][-1]
             gt_seg_predictions.append(current_gt_prediction)
-            gt_frame_predictions.extend(np_labels[frame:frame+duration, batch_i].tolist())
+            gt_frame_predictions.extend(np_labels[frame:frame + duration, batch_i].tolist())
 
             if token_i == -1 or batch_seg_pos[batch_i][token_i] < frame:
                 token_i += 1
@@ -242,8 +245,9 @@ def predict(activities, total_lengths, labels, ctc_labels, batch_tokens, batch_s
                 seg_start_frame = frame
 
             seg_predictions.append(current_prediction)
-            duration_prediction = [current_token for _ in range(min(duration, max(30, sample_duration-(frame-seg_start_frame))))]
-            duration_prediction.extend([current_prediction for _ in range(duration-len(duration_prediction))])
+            duration_prediction = [current_token
+                                   for _ in range(min(duration, max(30, sample_duration - (frame - seg_start_frame))))]
+            duration_prediction.extend([current_prediction for _ in range(duration - len(duration_prediction))])
             frame_predictions.extend(duration_prediction)
 
     return gt_seg_predictions, gt_frame_predictions, seg_predictions, frame_predictions
@@ -279,13 +283,20 @@ def validate(val_loader, model, args, test=False):
 
         # Inference
         model_outputs = model(features)
-        pred_labels, batch_earley_pred_labels, batch_tokens, batch_seg_pos = inference(model_outputs, activities, sequence_ids, ctc_labels, args)
+        pred_labels, batch_earley_pred_labels, batch_tokens, batch_seg_pos = inference(model_outputs,
+                                                                                       activities,
+                                                                                       sequence_ids,
+                                                                                       ctc_labels,
+                                                                                       args)
 
         # Visualize results
         for batch_i in range(labels.size()[1]):
+            filename = os.path.join(args.tmp_root, 'visualize', 'segmentation', 'cad',
+                                    '{}_{}.pdf'.format(activities[batch_i], sequence_ids[batch_i]))
             vizutil.plot_segmentation(
                 [labels[:, batch_i].squeeze(), pred_labels[:, batch_i].squeeze(), batch_earley_pred_labels[batch_i]],
-                int(total_lengths[batch_i]), filename=os.path.join(args.tmp_root, 'visualize', 'segmentation', 'cad', '{}_{}.pdf'.format(activities[batch_i], sequence_ids[batch_i])), border=False, vmax=len(datasets.cad_metadata.subactivities))
+                int(total_lengths[batch_i]),
+                filename=filename, border=False, vmax=len(datasets.cad_metadata.subactivities))
 
         # Evaluation
         # Frame-wise detection
@@ -298,7 +309,12 @@ def validate(val_loader, model, args, test=False):
         baseline_micro_result = compute_accuracy(gt_detections, baseline_detections)
         subact_micro_result = compute_accuracy(gt_detections, detections)
 
-        gt_seg_predictions, gt_frame_predictions, seg_predictions, frame_predictions = predict(activities, total_lengths, labels, ctc_labels, batch_tokens, batch_seg_pos)
+        gt_seg_predictions, gt_frame_predictions, seg_predictions, frame_predictions = predict(activities,
+                                                                                               total_lengths,
+                                                                                               labels,
+                                                                                               ctc_labels,
+                                                                                               batch_tokens,
+                                                                                               batch_seg_pos)
         all_gt_seg_predictions.extend(gt_seg_predictions)
         all_gt_frame_predictions.extend(gt_frame_predictions)
         all_seg_predictions.extend(seg_predictions)
@@ -323,14 +339,21 @@ def validate(val_loader, model, args, test=False):
     print(compute_accuracy(all_gt_seg_predictions, all_seg_predictions, metric='macro'))
     print(compute_accuracy(all_gt_frame_predictions, all_frame_predictions, metric='macro'))
 
-    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_detections, all_detections, labels=range(len(datasets.cad_metadata.subactivities)))
-    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True, title='', filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'detection.pdf'))
-    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_frame_predictions, all_frame_predictions, labels=range(len(datasets.cad_metadata.subactivities)))
-    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True, title='', filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'prediction_frame.pdf'))
-    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_seg_predictions, all_seg_predictions, labels=range(len(datasets.cad_metadata.subactivities)))
-    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True, title='', filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'prediction_seg.pdf'))
+    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_detections, all_detections,
+                                                        labels=range(len(datasets.cad_metadata.subactivities)))
+    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True,
+                                  title='',
+                                  filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'detection.pdf'))
+    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_frame_predictions, all_frame_predictions,
+                                                        labels=range(len(datasets.cad_metadata.subactivities)))
+    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True, title='',
+                                  filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'prediction_frame.pdf'))
+    confusion_matrix = sklearn.metrics.confusion_matrix(all_gt_seg_predictions, all_seg_predictions,
+                                                        labels=range(len(datasets.cad_metadata.subactivities)))
+    vizutil.plot_confusion_matrix(confusion_matrix, datasets.cad_metadata.subactivities[:], normalize=True, title='',
+                                  filename=os.path.join(args.tmp_root, 'visualize', 'confusion', 'cad', 'prediction_seg.pdf'))
 
-    return 1.0-subactivity_acc_ratio.avg
+    return 1.0 - subactivity_acc_ratio.avg
 
 
 def parse_arguments():
@@ -338,7 +361,7 @@ def parse_arguments():
     def restricted_float(x, inter):
         x = float(x)
         if x < inter[0] or x > inter[1]:
-            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]"%(x,))
+            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]" % (x,))
         return x
 
     paths = config.Paths()
@@ -348,7 +371,8 @@ def parse_arguments():
     parser.add_argument('--project-root', default=paths.project_root, help='intermediate result path')
     parser.add_argument('--tmp-root', default=paths.tmp_root, help='intermediate result path')
     parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/parsing'), help='log files path')
-    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/parsing'), help='path to latest checkpoint')
+    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/parsing'),
+                        help='path to latest checkpoint')
     parser.add_argument('--visualize', action='store_true', default=False, help='Visualize final results')
 
     # Optimization Options

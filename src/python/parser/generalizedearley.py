@@ -84,7 +84,7 @@ class GeneralizedEarley(object):
                 raise ValueError('Classifier output shape not recognized, expecting (frame_num, class_num).')
             self._classifier_output = classifier_output
             self._cached_prob = dict()
-            self._total_frame = self._classifier_output.shape[0]
+            self._total_frame = self._classifier_output.shape[0]  # total number of frames
             self._class_num = self._classifier_output.shape[1]
             self._cached_prob[''] = np.ones(self._total_frame + 1) * np.finfo('d').min
             self._cached_prob[''][self._total_frame] = 0.0
@@ -143,7 +143,7 @@ class GeneralizedEarley(object):
     def compute_labels(self):
         log_prob, log_prob_sum = self.get_log_prob_sum()
 
-        tokens = [int(token) for token in self._best_l.split(' ')]
+        tokens = [int(token) for token in self._best_l.split(' ')]  # Segment-level labels
         dp_tables = np.zeros((len(tokens), self._total_frame))
         traces = np.zeros_like(dp_tables)
 
@@ -163,7 +163,7 @@ class GeneralizedEarley(object):
                 dp_tables[token_i, end] = max_log_prob
 
         # Back tracing
-        token_pos = [-1 for _ in tokens]
+        token_pos = [-1 for _ in tokens]  # The final frame of each segment-level label
         token_pos[-1] = self._total_frame - 1
         for token_i in reversed(range(len(tokens)-1)):
             token_pos[token_i] = int(traces[token_i+1, token_pos[token_i+1]])

@@ -21,7 +21,12 @@ class CAD120(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         sequence_id = self.sequence_ids[index]
-        return self.data[sequence_id]['features'], self.data[sequence_id]['labels'], self.data[sequence_id]['seg_lengths'], self.data[sequence_id]['total_length'], self.data[sequence_id]['activity'], sequence_id
+        features = self.data[sequence_id]['features']
+        labels = self.data[sequence_id]['labels']
+        seg_lengths = self.data[sequence_id]['seg_lengths']
+        total_length = self.data[sequence_id]['total_length']
+        activity = self.data[sequence_id]['activity']
+        return features, labels, seg_lengths, total_length, activity, sequence_id
 
     def __len__(self):
         return len(self.sequence_ids)

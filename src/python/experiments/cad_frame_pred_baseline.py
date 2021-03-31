@@ -19,7 +19,7 @@ import numpy as np
 import torch
 import torch.autograd
 import sklearn.metrics
-import warpctc_pytorch
+# import warpctc_pytorch
 
 # Local imports
 import config
@@ -33,7 +33,7 @@ pred_duration = 45
 cross_entropy = torch.nn.CrossEntropyLoss().cuda()
 mse_loss = torch.nn.MSELoss().cuda()
 softmax = torch.nn.Softmax(dim=2)
-ctc_loss = warpctc_pytorch.CTCLoss().cuda()
+# ctc_loss = warpctc_pytorch.CTCLoss().cuda()
 
 
 def loss_func(model_outputs, labels, probs, total_lengths, args):
@@ -45,8 +45,8 @@ def loss_func(model_outputs, labels, probs, total_lengths, args):
         for f in range(seg_length):
             if int(labels[f, i_batch]) != current_label:
                 current_label = int(labels[f, i_batch])
-                gt_pred_labels.extend([current_label for _ in range(f-len(gt_pred_labels)-1)])
-        gt_pred_labels.extend([int(labels[seg_length-1, i_batch]) for _ in range(seg_length-len(gt_pred_labels))])
+                gt_pred_labels.extend([current_label for _ in range(f - len(gt_pred_labels) - 1)])
+        gt_pred_labels.extend([int(labels[seg_length - 1, i_batch]) for _ in range(seg_length - len(gt_pred_labels))])
         gt_pred_labels = utils.to_variable(torch.LongTensor(gt_pred_labels), args.cuda)
 
         loss += cross_entropy(model_outputs[:seg_length, i_batch, :], gt_pred_labels)
@@ -66,8 +66,8 @@ def main(args):
     # Load data
     training_set, testing_set, train_loader, test_loader = utils.get_cad_data(args)
     features, labels, seg_lengths, total_length, activity, sequence_id = training_set[0]
-    feature_size = features[0].shape[1]
-    label_num = len(datasets.cad_metadata.subactivities)
+    feature_size = features[0].shape[1]  # 1200
+    label_num = len(datasets.cad_metadata.subactivities)  # 10
     hidden_size = 256
     hidden_layers = 2
 
@@ -141,14 +141,15 @@ def train(train_loader, model, criterion, optimizer, epoch, logger, args=None):
             print 'training epoch [{},{},{}] acc: {:.3f}, loss: {}'.format(epoch, i, batch_i, subactivity_acc_ratio.avg, losses.avg)
             for frame in range(pred_duration-1, total_lengths[batch_i], 10):
                 optimizer.zero_grad()
-                model_outputs = model(features[:frame+1])
+                model_outputs = model(features[:frame + 1])
                 _, pred_labels = torch.max(model_outputs, dim=2)
-                train_loss = cross_entropy(model_outputs[-pred_duration:, batch_i], labels[frame-pred_duration+1:frame+1, batch_i])
+                train_loss = cross_entropy(model_outputs[-pred_duration:, batch_i],
+                                           labels[frame - pred_duration + 1:frame + 1, batch_i])
 
                 # Log
                 losses.update(train_loss.data[0], torch.sum(total_lengths).data[0])
 
-                subact_micro_result = sklearn.metrics.precision_recall_fscore_support(labels[frame-pred_duration+1:frame+1, batch_i].cpu().data.numpy().flatten().tolist(), pred_labels[-pred_duration:].cpu().data.numpy().flatten().tolist(), labels=range(10), average='micro')
+                subact_micro_result = sklearn.metrics.precision_recall_fscore_support(labels[frame - pred_duration + 1:frame + 1, batch_i].cpu().data.numpy().flatten().tolist(), pred_labels[-pred_duration:].cpu().data.numpy().flatten().tolist(), labels=range(10), average='micro')
                 subactivity_acc_ratio.update(subact_micro_result[0], torch.sum(total_lengths).data[0])
 
                 train_loss.backward()
@@ -185,11 +186,12 @@ def validate(val_loader, model, args, test=False):
 
         total_lengths = torch.autograd.Variable(total_lengths)
 
-        for batch_i in range(features.size()[1]):
-            for frame in range(pred_duration-1, total_lengths[batch_i], 10):
-                model_outputs = model(features[:frame+1])
+        for batch_i in range(features.size()[1]):  # features.size() == (max_length, batch_size, feature_size)
+            for frame in range(pred_duration - 1, total_lengths[batch_i], 10):
+                model_outputs = model(features[:frame + 1])
                 _, pred_labels = torch.max(model_outputs, dim=2)
-                gt_pred_labels = labels[frame-pred_duration+1:frame+1, batch_i].cpu().data.numpy().flatten().tolist()
+                # gt_pred_labels and pred_labels are lists of length pred_duration, which is 45 in this source code.
+                gt_pred_labels = labels[frame - pred_duration + 1:frame + 1, batch_i].cpu().data.numpy().flatten().tolist()
                 pred_labels = pred_labels[-pred_duration:].cpu().data.numpy().flatten().tolist()
 
                 subact_micro_result = compute_accuracy(gt_pred_labels, pred_labels)
@@ -197,7 +199,6 @@ def validate(val_loader, model, args, test=False):
 
                 all_gt_seg_predictions.extend(gt_pred_labels)
                 all_seg_predictions.extend(pred_labels)
-
         # Measure elapsed time
         batch_time.update(time.time() - end_time)
         end_time = time.time()
@@ -213,7 +214,7 @@ def parse_arguments():
     def restricted_float(x, inter):
         x = float(x)
         if x < inter[0] or x > inter[1]:
-            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]"%(x,))
+            raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]" % (x,))
         return x
 
     paths = config.Paths()
@@ -222,8 +223,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='CAD 120 dataset')
     parser.add_argument('--project-root', default=paths.project_root, help='intermediate result path')
     parser.add_argument('--tmp-root', default=paths.tmp_root, help='intermediate result path')
-    parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/baseline/frame'), help='log files path')
-    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/baseline/frame'), help='path to latest checkpoint')
+    parser.add_argument('--log-root', default=os.path.join(paths.log_root, 'cad120/baseline/frame'),
+                        help='log files path')
+    parser.add_argument('--resume', default=os.path.join(paths.tmp_root, 'checkpoints/cad120/baseline/frame'),
+                        help='path to latest checkpoint')
     parser.add_argument('--visualize', action='store_true', default=False, help='Visualize final results')
 
     # Optimization Options

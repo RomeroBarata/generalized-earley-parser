@@ -24,7 +24,8 @@ class Paths(object):
         self.tmp_root = os.path.join(self.project_root, 'tmp')
         self.log_root = os.path.join(self.project_root, 'log')
 
-        self.cad_data_root = '/home/siyuan/data/CAD120/'
+        # self.cad_data_root = '/home/siyuan/data/CAD120/'
+        self.cad_data_root = '/home/romero/data/CAD-120'
 
 
 def set_logger(name='learner.log'):
@@ -37,8 +38,7 @@ def set_logger(name='learner.log'):
 
     logger = logging.getLogger(name)
     file_handler = logging.FileHandler(name, mode='w')
-    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s',
-                                                "%Y-%m-%d %H:%M:%S"))
+    file_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s', "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(file_handler)
     logger.setLevel(logging.DEBUG)
     return logger

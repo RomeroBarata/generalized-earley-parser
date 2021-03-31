@@ -23,7 +23,9 @@ def collate_fn_cad(batch):
     feature_size = features[0].shape[1]
     label_num = len(CAD120.metadata.subactivities)
 
-    max_seq_length = np.max(np.array([total_length for (features, labels, seg_lengths, total_length, activity, sequence_id) in batch]))
+    seq_length = [total_length for (features, labels, seg_lengths, total_length, activity, sequence_id) in batch]
+    seq_length = np.array(seq_length)
+    max_seq_length = np.max(seq_length)  # Length (in frames) of the longest video
     features_batch = np.zeros((max_seq_length, len(batch), feature_size))
     labels_batch = np.ones((max_seq_length, len(batch))) * -1
     probs_batch = np.zeros((max_seq_length, len(batch), label_num))
@@ -35,12 +37,15 @@ def collate_fn_cad(batch):
 
     for batch_i, (features, labels, seg_lengths, total_length, activity, sequence_id) in enumerate(batch):
         current_len = 0
-        ctc_labels.append(labels)
-        ctc_lengths.append(len(labels))
+        ctc_labels.append(labels)  # Per-segment label
+        ctc_lengths.append(len(labels))  # Number of segments
+        # They repeat the provided segment feature for each frame in the segment
         for seg_i, feature in enumerate(features):
-            features_batch[current_len:current_len+seg_lengths[seg_i], batch_i, :] = np.repeat(features[seg_i], seg_lengths[seg_i], axis=0)
-            labels_batch[current_len:current_len+seg_lengths[seg_i], batch_i] = labels[seg_i]
-            probs_batch[current_len:current_len+seg_lengths[seg_i], batch_i, labels[seg_i]] = 1.0
+            features_batch[current_len:current_len + seg_lengths[seg_i], batch_i, :] = np.repeat(features[seg_i],
+                                                                                                 seg_lengths[seg_i],
+                                                                                                 axis=0)
+            labels_batch[current_len:current_len + seg_lengths[seg_i], batch_i] = labels[seg_i]
+            probs_batch[current_len:current_len + seg_lengths[seg_i], batch_i, labels[seg_i]] = 1.0
             current_len += seg_lengths[seg_i]
         total_lengths[batch_i] = total_length
         activities.append(activity)
